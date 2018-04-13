@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import os
@@ -19,15 +19,17 @@ from lib.core.enums import DBMS_DIRECTORY_NAME
 from lib.core.enums import OS
 
 # sqlmap version (<major>.<minor>.<month>.<monthly commit>)
-VERSION = "1.1.5.9"
+VERSION = "1.2.4.17"
 TYPE = "dev" if VERSION.count('.') > 2 and VERSION.split('.')[-1] != '0' else "stable"
 TYPE_COLORS = {"dev": 33, "stable": 90, "pip": 34}
 VERSION_STRING = "sqlmap/%s#%s" % ('.'.join(VERSION.split('.')[:-1]) if VERSION.count('.') > 2 and VERSION.split('.')[-1] == '0' else VERSION, TYPE)
 DESCRIPTION = "automatic SQL injection and database takeover tool"
 SITE = "http://sqlmap.org"
+DEV_EMAIL_ADDRESS = "dev@sqlmap.org"
 ISSUES_PAGE = "https://github.com/sqlmapproject/sqlmap/issues/new"
-GIT_REPOSITORY = "git://github.com/sqlmapproject/sqlmap.git"
+GIT_REPOSITORY = "https://github.com/sqlmapproject/sqlmap.git"
 GIT_PAGE = "https://github.com/sqlmapproject/sqlmap"
+ZIPBALL_PAGE = "https://github.com/sqlmapproject/sqlmap/zipball/master"
 
 # colorful banner
 BANNER = """\033[01;33m\
@@ -63,26 +65,31 @@ URI_QUESTION_MARKER = "__QUESTION_MARK__"
 ASTERISK_MARKER = "__ASTERISK_MARK__"
 REPLACEMENT_MARKER = "__REPLACEMENT_MARK__"
 BOUNDED_INJECTION_MARKER = "__BOUNDED_INJECTION_MARK__"
+SAFE_VARIABLE_MARKER = "__SAFE__"
 
 RANDOM_INTEGER_MARKER = "[RANDINT]"
 RANDOM_STRING_MARKER = "[RANDSTR]"
 SLEEP_TIME_MARKER = "[SLEEPTIME]"
+INFERENCE_MARKER = "[INFERENCE]"
 
 PAYLOAD_DELIMITER = "__PAYLOAD_DELIMITER__"
 CHAR_INFERENCE_MARK = "%c"
 PRINTABLE_CHAR_REGEX = r"[^\x00-\x1f\x7f-\xff]"
 
 # Regular expression used for extraction of table names (useful for (e.g.) MsAccess)
-SELECT_FROM_TABLE_REGEX = r"\bSELECT .+? FROM (?P<result>([\w.]|`[^`<>]+`)+)"
+SELECT_FROM_TABLE_REGEX = r"\bSELECT\b.+?\bFROM\s+(?P<result>([\w.]|`[^`<>]+`)+)"
 
 # Regular expression used for recognition of textual content-type
 TEXT_CONTENT_TYPE_REGEX = r"(?i)(text|form|message|xml|javascript|ecmascript|json)"
 
 # Regular expression used for recognition of generic permission messages
-PERMISSION_DENIED_REGEX = r"(command|permission|access)\s*(was|is)?\s*denied"
+PERMISSION_DENIED_REGEX = r"(?P<result>(command|permission|access)\s*(was|is)?\s*denied)"
+
+# Regular expression used in recognition of generic protection mechanisms
+GENERIC_PROTECTION_REGEX = r"(?i)\b(rejected|blocked|protection|incident|denied|detected|dangerous|firewall)\b"
 
 # Regular expression used for recognition of generic maximum connection messages
-MAX_CONNECTIONS_REGEX = r"max.+connections"
+MAX_CONNECTIONS_REGEX = r"\bmax.+?\bconnection"
 
 # Maximum consecutive connection errors before asking the user if he wants to continue
 MAX_CONSECUTIVE_CONNECTION_ERRORS = 15
@@ -99,8 +106,8 @@ GOOGLE_REGEX = r"webcache\.googleusercontent\.com/search\?q=cache:[^:]+:([^+]+)\
 # Regular expression used for extracting results from DuckDuckGo search
 DUCKDUCKGO_REGEX = r'"u":"([^"]+)'
 
-# Regular expression used for extracting results from Disconnect Search
-DISCONNECT_SEARCH_REGEX = r'<p class="url wrapword">([^<]+)</p>'
+# Regular expression used for extracting results from Bing search
+BING_REGEX = r'<h2><a href="([^"]+)" h='
 
 # Dummy user agent for search (if default one returns different results)
 DUMMY_SEARCH_USER_AGENT = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0"
@@ -175,6 +182,9 @@ INFERENCE_UNKNOWN_CHAR = '?'
 # Character used for operation "greater" in inference
 INFERENCE_GREATER_CHAR = ">"
 
+# Character used for operation "greater or equal" in inference
+INFERENCE_GREATER_EQUALS_CHAR = ">="
+
 # Character used for operation "equals" in inference
 INFERENCE_EQUALS_CHAR = "="
 
@@ -187,14 +197,19 @@ UNKNOWN_DBMS = "Unknown"
 # String used for representation of unknown DBMS version
 UNKNOWN_DBMS_VERSION = "Unknown"
 
-# Dynamicity mark length used in dynamicity removal engine
-DYNAMICITY_MARK_LENGTH = 32
+# Dynamicity boundary length used in dynamicity removal engine
+DYNAMICITY_BOUNDARY_LENGTH = 20
 
 # Dummy user prefix used in dictionary attack
 DUMMY_USER_PREFIX = "__dummy__"
 
 # Reference: http://en.wikipedia.org/wiki/ISO/IEC_8859-1
 DEFAULT_PAGE_ENCODING = "iso-8859-1"
+
+try:
+    unicode(DEFAULT_PAGE_ENCODING, DEFAULT_PAGE_ENCODING)
+except LookupError:
+    DEFAULT_PAGE_ENCODING = "utf8"
 
 # URL used in dummy runs
 DUMMY_URL = "http://foo/bar?id=1"
@@ -210,7 +225,7 @@ PYVERSION = sys.version.split()[0]
 MSSQL_SYSTEM_DBS = ("Northwind", "master", "model", "msdb", "pubs", "tempdb")
 MYSQL_SYSTEM_DBS = ("information_schema", "mysql", "performance_schema")
 PGSQL_SYSTEM_DBS = ("information_schema", "pg_catalog", "pg_toast", "pgagent")
-ORACLE_SYSTEM_DBS = ("ANONYMOUS", "APEX_PUBLIC_USER", "CTXSYS", "DBSNMP", "DIP", "EXFSYS", "FLOWS_%", "FLOWS_FILES", "LBACSYS", "MDDATA", "MDSYS", "MGMT_VIEW", "OLAPSYS", "ORACLE_OCM", "ORDDATA", "ORDPLUGINS", "ORDSYS", "OUTLN", "OWBSYS", "SI_INFORMTN_SCHEMA", "SPATIAL_CSW_ADMIN_USR", "SPATIAL_WFS_ADMIN_USR", "SYS", "SYSMAN", "SYSTEM", "WKPROXY", "WKSYS", "WK_TEST", "WMSYS", "XDB", "XS$NULL")  # Reference: https://blog.vishalgupta.com/2011/06/19/predefined-oracle-system-schemas/ 
+ORACLE_SYSTEM_DBS = ('ANONYMOUS', 'APEX_030200', 'APEX_PUBLIC_USER', 'APPQOSSYS', 'BI', 'CTXSYS', 'DBSNMP', 'DIP', 'EXFSYS', 'FLOWS_%', 'FLOWS_FILES', 'HR', 'IX', 'LBACSYS', 'MDDATA', 'MDSYS', 'MGMT_VIEW', 'OC', 'OE', 'OLAPSYS', 'ORACLE_OCM', 'ORDDATA', 'ORDPLUGINS', 'ORDSYS', 'OUTLN', 'OWBSYS', 'PM', 'SCOTT', 'SH', 'SI_INFORMTN_SCHEMA', 'SPATIAL_CSW_ADMIN_USR', 'SPATIAL_WFS_ADMIN_USR', 'SYS', 'SYSMAN', 'SYSTEM', 'WKPROXY', 'WKSYS', 'WK_TEST', 'WMSYS', 'XDB', 'XS$NULL')
 SQLITE_SYSTEM_DBS = ("sqlite_master", "sqlite_temp_master")
 ACCESS_SYSTEM_DBS = ("MSysAccessObjects", "MSysACEs", "MSysObjects", "MSysQueries", "MSysRelationships", "MSysAccessStorage", "MSysAccessXML", "MSysModules", "MSysModules2")
 FIREBIRD_SYSTEM_DBS = ("RDB$BACKUP_HISTORY", "RDB$CHARACTER_SETS", "RDB$CHECK_CONSTRAINTS", "RDB$COLLATIONS", "RDB$DATABASE", "RDB$DEPENDENCIES", "RDB$EXCEPTIONS", "RDB$FIELDS", "RDB$FIELD_DIMENSIONS", " RDB$FILES", "RDB$FILTERS", "RDB$FORMATS", "RDB$FUNCTIONS", "RDB$FUNCTION_ARGUMENTS", "RDB$GENERATORS", "RDB$INDEX_SEGMENTS", "RDB$INDICES", "RDB$LOG_FILES", "RDB$PAGES", "RDB$PROCEDURES", "RDB$PROCEDURE_PARAMETERS", "RDB$REF_CONSTRAINTS", "RDB$RELATIONS", "RDB$RELATION_CONSTRAINTS", "RDB$RELATION_FIELDS", "RDB$ROLES", "RDB$SECURITY_CLASSES", "RDB$TRANSACTIONS", "RDB$TRIGGERS", "RDB$TRIGGER_MESSAGES", "RDB$TYPES", "RDB$USER_PRIVILEGES", "RDB$VIEW_RELATIONS")
@@ -285,6 +300,10 @@ BASIC_HELP_ITEMS = (
     "wizard",
 )
 
+# Tags used for value replacements inside shell scripts
+SHELL_WRITABLE_DIR_TAG = "%WRITABLE_DIR%"
+SHELL_RUNCMD_EXE_TAG = "%RUNCMD_EXE%"
+
 # String representation for NULL value
 NULL = "NULL"
 
@@ -294,13 +313,16 @@ BLANK = "<blank>"
 # String representation for current database
 CURRENT_DB = "CD"
 
+# Name of SQLite file used for storing session data
+SESSION_SQLITE_FILE = "session.sqlite"
+
 # Regular expressions used for finding file paths in error messages
-FILE_PATH_REGEXES = (r" in (file )?<b>(?P<result>.*?)</b> on line \d+", r"in (?P<result>[^<>]+?) on line \d+", r"(?:[>(\[\s])(?P<result>[A-Za-z]:[\\/][\w. \\/-]*)", r"(?:[>(\[\s])(?P<result>/\w[/\w.-]+)", r"href=['\"]file://(?P<result>/[^'\"]+)")
+FILE_PATH_REGEXES = (r"<b>(?P<result>[^<>]+?)</b> on line \d+", r"in (?P<result>[^<>'\"]+?)['\"]? on line \d+", r"(?:[>(\[\s])(?P<result>[A-Za-z]:[\\/][\w. \\/-]*)", r"(?:[>(\[\s])(?P<result>/\w[/\w.~-]+)", r"href=['\"]file://(?P<result>/[^'\"]+)")
 
 # Regular expressions used for parsing error messages (--parse-errors)
 ERROR_PARSING_REGEXES = (
     r"<b>[^<]*(fatal|error|warning|exception)[^<]*</b>:?\s*(?P<result>.+?)<br\s*/?\s*>",
-    r"(?m)^(fatal|error|warning|exception):?\s*(?P<result>[^\n]+?)$",
+    r"(?m)^\s*(fatal|error|warning|exception):?\s*(?P<result>[^\n]+?)$",
     r"(?P<result>[^\n>]*SQL Syntax[^\n<]+)",
     r"<li>Error Type:<br>(?P<result>.+?)</li>",
     r"CDbCommand (?P<result>[^<>\n]*SQL[^<>\n]+)",
@@ -366,7 +388,7 @@ CANDIDATE_SENTENCE_MIN_LENGTH = 10
 CUSTOM_INJECTION_MARK_CHAR = '*'
 
 # Other way to declare injection position
-INJECT_HERE_MARK = '%INJECT HERE%'
+INJECT_HERE_REGEX = '(?i)%INJECT[_ ]?HERE%'
 
 # Minimum chunk length used for retrieving data over error based payloads
 MIN_ERROR_CHUNK_LENGTH = 8
@@ -406,6 +428,9 @@ HASH_MOD_ITEM_DISPLAY = 11
 
 # Maximum integer value
 MAX_INT = sys.maxint
+
+# Replacement for unsafe characters in dump table filenames
+UNSAFE_DUMP_FILEPATH_REPLACEMENT = '_'
 
 # Options that need to be restored in multiple targets run mode
 RESTORE_MERGED_OPTIONS = ("col", "db", "dnsDomain", "privEsc", "tbl", "regexp", "string", "textOnly", "threads", "timeSec", "tmpPath", "uChar", "user")
@@ -453,6 +478,9 @@ LOW_TEXT_PERCENT = 20
 # Reference: http://dev.mysql.com/doc/refman/5.1/en/function-resolution.html
 IGNORE_SPACE_AFFECTED_KEYWORDS = ("CAST", "COUNT", "EXTRACT", "GROUP_CONCAT", "MAX", "MID", "MIN", "SESSION_USER", "SUBSTR", "SUBSTRING", "SUM", "SYSTEM_USER", "TRIM")
 
+# Keywords expected to be in UPPERCASE in getValue()
+GET_VALUE_UPPERCASE_KEYWORDS = ("SELECT", "FROM", "WHERE", "DISTINCT", "COUNT")
+
 LEGAL_DISCLAIMER = "Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program"
 
 # After this number of misses reflective removal mechanism is turned off (for speed up reasons)
@@ -470,12 +498,12 @@ PICKLE_REDUCE_WHITELIST = (types.BooleanType, types.DictType, types.FloatType, t
 DUMMY_SQL_INJECTION_CHARS = ";()'"
 
 # Simple check against dummy users
-DUMMY_USER_INJECTION = r"(?i)[^\w](AND|OR)\s+[^\s]+[=><]|\bUNION\b.+\bSELECT\b|\bSELECT\b.+\bFROM\b|\b(CONCAT|information_schema|SLEEP|DELAY)\b"
+DUMMY_USER_INJECTION = r"(?i)[^\w](AND|OR)\s+[^\s]+[=><]|\bUNION\b.+\bSELECT\b|\bSELECT\b.+\bFROM\b|\b(CONCAT|information_schema|SLEEP|DELAY|FLOOR\(RAND)\b"
 
 # Extensions skipped by crawler
 CRAWL_EXCLUDE_EXTENSIONS = ("3ds", "3g2", "3gp", "7z", "DS_Store", "a", "aac", "adp", "ai", "aif", "aiff", "apk", "ar", "asf", "au", "avi", "bak", "bin", "bk", "bmp", "btif", "bz2", "cab", "caf", "cgm", "cmx", "cpio", "cr2", "dat", "deb", "djvu", "dll", "dmg", "dmp", "dng", "doc", "docx", "dot", "dotx", "dra", "dsk", "dts", "dtshd", "dvb", "dwg", "dxf", "ear", "ecelp4800", "ecelp7470", "ecelp9600", "egg", "eol", "eot", "epub", "exe", "f4v", "fbs", "fh", "fla", "flac", "fli", "flv", "fpx", "fst", "fvt", "g3", "gif", "gz", "h261", "h263", "h264", "ico", "ief", "image", "img", "ipa", "iso", "jar", "jpeg", "jpg", "jpgv", "jpm", "jxr", "ktx", "lvp", "lz", "lzma", "lzo", "m3u", "m4a", "m4v", "mar", "mdi", "mid", "mj2", "mka", "mkv", "mmr", "mng", "mov", "movie", "mp3", "mp4", "mp4a", "mpeg", "mpg", "mpga", "mxu", "nef", "npx", "o", "oga", "ogg", "ogv", "otf", "pbm", "pcx", "pdf", "pea", "pgm", "pic", "png", "pnm", "ppm", "pps", "ppt", "pptx", "ps", "psd", "pya", "pyc", "pyo", "pyv", "qt", "rar", "ras", "raw", "rgb", "rip", "rlc", "rz", "s3m", "s7z", "scm", "scpt", "sgi", "shar", "sil", "smv", "so", "sub", "swf", "tar", "tbz2", "tga", "tgz", "tif", "tiff", "tlz", "ts", "ttf", "uvh", "uvi", "uvm", "uvp", "uvs", "uvu", "viv", "vob", "war", "wav", "wax", "wbmp", "wdp", "weba", "webm", "webp", "whl", "wm", "wma", "wmv", "wmx", "woff", "woff2", "wvx", "xbm", "xif", "xls", "xlsx", "xlt", "xm", "xpi", "xpm", "xwd", "xz", "z", "zip", "zipx")
 
-# Patterns often seen in HTTP headers containing custom injection marking character
+# Patterns often seen in HTTP headers containing custom injection marking character '*'
 PROBLEMATIC_CUSTOM_INJECTION_PATTERNS = r"(;q=[^;']+)|(\*/\*)"
 
 # Template used for common table existence check
@@ -491,7 +519,7 @@ IDS_WAF_CHECK_PAYLOAD = "AND 1=1 UNION ALL SELECT 1,NULL,'<script>alert(\"XSS\")
 SHELLCODEEXEC_RANDOM_STRING_MARKER = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 # Generic address for checking the Internet connection while using switch --check-internet
-CHECK_INTERNET_ADDRESS = "http://ipinfo.io/"
+CHECK_INTERNET_ADDRESS = "https://ipinfo.io/"
 
 # Value to look for in response to CHECK_INTERNET_ADDRESS
 CHECK_INTERNET_VALUE = "IP Address Details"
@@ -510,6 +538,9 @@ ROTATING_CHARS = ('\\', '|', '|', '/', '-')
 
 # Approximate chunk length (in bytes) used by BigArray objects (only last chunk and cached one are held in memory)
 BIGARRAY_CHUNK_SIZE = 1024 * 1024
+
+# Compress level used for storing BigArray chunks to disk (0-9)
+BIGARRAY_COMPRESS_LEVEL = 9
 
 # Maximum number of socket pre-connects
 SOCKET_PRE_CONNECT_QUEUE_SIZE = 3
@@ -588,7 +619,7 @@ MAX_TOTAL_REDIRECTIONS = 10
 MAX_DNS_LABEL = 63
 
 # Alphabet used for prefix and suffix strings of name resolution requests in DNS technique (excluding hexadecimal chars for not mixing with inner content)
-DNS_BOUNDARIES_ALPHABET = re.sub("[a-fA-F]", "", string.ascii_letters)
+DNS_BOUNDARIES_ALPHABET = re.sub(r"[a-fA-F]", "", string.ascii_letters)
 
 # Alphabet used for heuristic checks
 HEURISTIC_CHECK_ALPHABET = ('"', '\'', ')', '(', ',', '.')
@@ -609,7 +640,7 @@ NON_SQLI_CHECK_PREFIX_SUFFIX_LENGTH = 6
 MAX_CONNECTION_CHUNK_SIZE = 10 * 1024 * 1024
 
 # Maximum response total page size (trimmed if larger)
-MAX_CONNECTION_TOTAL_SIZE = 50 * 1024 * 1024
+MAX_CONNECTION_TOTAL_SIZE = 100 * 1024 * 1024
 
 # For preventing MemoryError exceptions (caused when using large sequences in difflib.SequenceMatcher)
 MAX_DIFFLIB_SEQUENCE_LENGTH = 10 * 1024 * 1024
@@ -630,7 +661,7 @@ VALID_TIME_CHARS_RUN_THRESHOLD = 100
 CHECK_ZERO_COLUMNS_THRESHOLD = 10
 
 # Boldify all logger messages containing these "patterns"
-BOLD_PATTERNS = ("' injectable", "provided empty", "leftover chars", "might be injectable", "' is vulnerable", "is not injectable", "does not seem to be", "test failed", "test passed", "live test final result", "test shows that", "the back-end DBMS is", "created Github", "blocked by the target server", "protection is involved", "CAPTCHA")
+BOLD_PATTERNS = ("' injectable", "provided empty", "leftover chars", "might be injectable", "' is vulnerable", "is not injectable", "does not seem to be", "test failed", "test passed", "live test final result", "test shows that", "the back-end DBMS is", "created Github", "blocked by the target server", "protection is involved", "CAPTCHA", "specific response", "NULL connection is supported")
 
 # Generic www root directory names
 GENERIC_DOC_ROOT_DIRECTORY_NAMES = ("htdocs", "httpdocs", "public", "wwwroot", "www")
@@ -669,7 +700,7 @@ INVALID_UNICODE_CHAR_FORMAT = r"\x%02x"
 XML_RECOGNITION_REGEX = r"(?s)\A\s*<[^>]+>(.+>)?\s*\Z"
 
 # Regular expression used for detecting JSON POST data
-JSON_RECOGNITION_REGEX = r'(?s)\A(\s*\[)*\s*\{.*"[^"]+"\s*:\s*("[^"]+"|\d+).*\}\s*(\]\s*)*\Z'
+JSON_RECOGNITION_REGEX = r'(?s)\A(\s*\[)*\s*\{.*"[^"]+"\s*:\s*("[^"]*"|\d+|true|false|null).*\}\s*(\]\s*)*\Z'
 
 # Regular expression used for detecting JSON-like POST data
 JSON_LIKE_RECOGNITION_REGEX = r"(?s)\A(\s*\[)*\s*\{.*'[^']+'\s*:\s*('[^']+'|\d+).*\}\s*(\]\s*)*\Z"

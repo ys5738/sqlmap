@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import re
@@ -76,7 +76,10 @@ def _oneShotErrorUse(expression, field=None, chunkTest=False):
         current = MAX_ERROR_CHUNK_LENGTH
         while current >= MIN_ERROR_CHUNK_LENGTH:
             testChar = str(current % 10)
-            testQuery = "SELECT %s('%s',%d)" % ("REPEAT" if Backend.isDbms(DBMS.MYSQL) else "REPLICATE", testChar, current)
+
+            testQuery = "%s('%s',%d)" % ("REPEAT" if Backend.isDbms(DBMS.MYSQL) else "REPLICATE", testChar, current)
+            testQuery = "SELECT %s" % (agent.hexConvertField(testQuery) if conf.hexConvert else testQuery)
+
             result = unArrayizeValue(_oneShotErrorUse(testQuery, chunkTest=True))
 
             if (result or "").startswith(testChar):
@@ -121,7 +124,7 @@ def _oneShotErrorUse(expression, field=None, chunkTest=False):
                 payload = agent.payload(newValue=injExpression)
 
                 # Perform the request
-                page, headers = Request.queryPage(payload, content=True, raise404=False)
+                page, headers, _ = Request.queryPage(payload, content=True, raise404=False)
 
                 incrementCounter(kb.technique)
 
@@ -130,20 +133,23 @@ def _oneShotErrorUse(expression, field=None, chunkTest=False):
 
                 # Parse the returned page to get the exact error-based
                 # SQL injection output
-                output = reduce(lambda x, y: x if x is not None else y, (\
-                        extractRegexResult(check, page), \
-                        extractRegexResult(check, threadData.lastHTTPError[2] if wasLastResponseHTTPError() else None), \
-                        extractRegexResult(check, listToStrValue([headers[header] for header in headers if header.lower() != HTTP_HEADER.URI.lower()] if headers else None)), \
-                        extractRegexResult(check, threadData.lastRedirectMsg[1] if threadData.lastRedirectMsg and threadData.lastRedirectMsg[0] == threadData.lastRequestUID else None)), \
-                        None)
+                output = reduce(lambda x, y: x if x is not None else y, (
+                    extractRegexResult(check, page),
+                    extractRegexResult(check, threadData.lastHTTPError[2] if wasLastResponseHTTPError() else None),
+                    extractRegexResult(check, listToStrValue((headers[header] for header in headers if header.lower() != HTTP_HEADER.URI.lower()) if headers else None)),
+                    extractRegexResult(check, threadData.lastRedirectMsg[1] if threadData.lastRedirectMsg and threadData.lastRedirectMsg[0] == threadData.lastRequestUID else None)),
+                    None
+                )
 
                 if output is not None:
                     output = getUnicode(output)
                 else:
-                    trimmed = extractRegexResult(trimcheck, page) \
-                        or extractRegexResult(trimcheck, threadData.lastHTTPError[2] if wasLastResponseHTTPError() else None) \
-                        or extractRegexResult(trimcheck, listToStrValue([headers[header] for header in headers if header.lower() != HTTP_HEADER.URI.lower()] if headers else None)) \
-                        or extractRegexResult(trimcheck, threadData.lastRedirectMsg[1] if threadData.lastRedirectMsg and threadData.lastRedirectMsg[0] == threadData.lastRequestUID else None)
+                    trimmed = (
+                        extractRegexResult(trimcheck, page) or
+                        extractRegexResult(trimcheck, threadData.lastHTTPError[2] if wasLastResponseHTTPError() else None) or
+                        extractRegexResult(trimcheck, listToStrValue((headers[header] for header in headers if header.lower() != HTTP_HEADER.URI.lower()) if headers else None)) or
+                        extractRegexResult(trimcheck, threadData.lastRedirectMsg[1] if threadData.lastRedirectMsg and threadData.lastRedirectMsg[0] == threadData.lastRequestUID else None)
+                    )
 
                     if trimmed:
                         if not chunkTest:
@@ -305,12 +311,7 @@ def errorUse(expression, dump=False):
     # entry at a time
     # NOTE: we assume that only queries that get data from a table can
     # return multiple entries
-    if (dump and (conf.limitStart or conf.limitStop)) or (" FROM " in \
-       expression.upper() and ((Backend.getIdentifiedDbms() not in FROM_DUMMY_TABLE) \
-       or (Backend.getIdentifiedDbms() in FROM_DUMMY_TABLE and not \
-       expression.upper().endswith(FROM_DUMMY_TABLE[Backend.getIdentifiedDbms()]))) \
-       and ("(CASE" not in expression.upper() or ("(CASE" in expression.upper() and "WHEN use" in expression))) \
-       and not re.search(SQL_SCALAR_REGEX, expression, re.I):
+    if (dump and (conf.limitStart or conf.limitStop)) or (" FROM " in expression.upper() and ((Backend.getIdentifiedDbms() not in FROM_DUMMY_TABLE) or (Backend.getIdentifiedDbms() in FROM_DUMMY_TABLE and not expression.upper().endswith(FROM_DUMMY_TABLE[Backend.getIdentifiedDbms()]))) and ("(CASE" not in expression.upper() or ("(CASE" in expression.upper() and "WHEN use" in expression))) and not re.search(SQL_SCALAR_REGEX, expression, re.I):
         expression, limitCond, topLimit, startLimit, stopLimit = agent.limitCondition(expression, dump)
 
         if limitCond:
@@ -330,7 +331,7 @@ def errorUse(expression, dump=False):
                 else:
                     stopLimit = int(count)
 
-                    infoMsg = "the SQL query used returns "
+                    infoMsg = "used SQL query returns "
                     infoMsg += "%d entries" % stopLimit
                     logger.info(infoMsg)
 
@@ -352,93 +353,94 @@ def errorUse(expression, dump=False):
                     value = []  # for empty tables
                 return value
 
-            if " ORDER BY " in expression and (stopLimit - startLimit) > SLOW_ORDER_COUNT_THRESHOLD:
-                message = "due to huge table size do you want to remove "
-                message += "ORDER BY clause gaining speed over consistency? [y/N] "
+            if isNumPosStrValue(count) and int(count) > 1:
+                if " ORDER BY " in expression and (stopLimit - startLimit) > SLOW_ORDER_COUNT_THRESHOLD:
+                    message = "due to huge table size do you want to remove "
+                    message += "ORDER BY clause gaining speed over consistency? [y/N] "
 
-                if readInput(message, default="N", boolean=True):
-                    expression = expression[:expression.index(" ORDER BY ")]
+                    if readInput(message, default="N", boolean=True):
+                        expression = expression[:expression.index(" ORDER BY ")]
 
-            numThreads = min(conf.threads, (stopLimit - startLimit))
+                numThreads = min(conf.threads, (stopLimit - startLimit))
 
-            threadData = getCurrentThreadData()
+                threadData = getCurrentThreadData()
 
-            try:
-                threadData.shared.limits = iter(xrange(startLimit, stopLimit))
-            except OverflowError:
-                errMsg = "boundary limits (%d,%d) are too large. Please rerun " % (startLimit, stopLimit)
-                errMsg += "with switch '--fresh-queries'"
-                raise SqlmapDataException(errMsg)
+                try:
+                    threadData.shared.limits = iter(xrange(startLimit, stopLimit))
+                except OverflowError:
+                    errMsg = "boundary limits (%d,%d) are too large. Please rerun " % (startLimit, stopLimit)
+                    errMsg += "with switch '--fresh-queries'"
+                    raise SqlmapDataException(errMsg)
 
-            threadData.shared.value = BigArray()
-            threadData.shared.buffered = []
-            threadData.shared.counter = 0
-            threadData.shared.lastFlushed = startLimit - 1
-            threadData.shared.showEta = conf.eta and (stopLimit - startLimit) > 1
+                threadData.shared.value = BigArray()
+                threadData.shared.buffered = []
+                threadData.shared.counter = 0
+                threadData.shared.lastFlushed = startLimit - 1
+                threadData.shared.showEta = conf.eta and (stopLimit - startLimit) > 1
 
-            if threadData.shared.showEta:
-                threadData.shared.progress = ProgressBar(maxValue=(stopLimit - startLimit))
+                if threadData.shared.showEta:
+                    threadData.shared.progress = ProgressBar(maxValue=(stopLimit - startLimit))
 
-            if kb.dumpTable and (len(expressionFieldsList) < (stopLimit - startLimit) > CHECK_ZERO_COLUMNS_THRESHOLD):
-                for field in expressionFieldsList:
-                    if _oneShotErrorUse("SELECT COUNT(%s) FROM %s" % (field, kb.dumpTable)) == '0':
-                        emptyFields.append(field)
-                        debugMsg = "column '%s' of table '%s' will not be " % (field, kb.dumpTable)
-                        debugMsg += "dumped as it appears to be empty"
-                        logger.debug(debugMsg)
+                if kb.dumpTable and (len(expressionFieldsList) < (stopLimit - startLimit) > CHECK_ZERO_COLUMNS_THRESHOLD):
+                    for field in expressionFieldsList:
+                        if _oneShotErrorUse("SELECT COUNT(%s) FROM %s" % (field, kb.dumpTable)) == '0':
+                            emptyFields.append(field)
+                            debugMsg = "column '%s' of table '%s' will not be " % (field, kb.dumpTable)
+                            debugMsg += "dumped as it appears to be empty"
+                            logger.debug(debugMsg)
 
-            if stopLimit > TURN_OFF_RESUME_INFO_LIMIT:
-                kb.suppressResumeInfo = True
-                debugMsg = "suppressing possible resume console info because of "
-                debugMsg += "large number of rows. It might take too long"
-                logger.debug(debugMsg)
+                if stopLimit > TURN_OFF_RESUME_INFO_LIMIT:
+                    kb.suppressResumeInfo = True
+                    debugMsg = "suppressing possible resume console info because of "
+                    debugMsg += "large number of rows. It might take too long"
+                    logger.debug(debugMsg)
 
-            try:
-                def errorThread():
-                    threadData = getCurrentThreadData()
+                try:
+                    def errorThread():
+                        threadData = getCurrentThreadData()
 
-                    while kb.threadContinue:
-                        with kb.locks.limit:
-                            try:
-                                valueStart = time.time()
-                                threadData.shared.counter += 1
-                                num = threadData.shared.limits.next()
-                            except StopIteration:
+                        while kb.threadContinue:
+                            with kb.locks.limit:
+                                try:
+                                    valueStart = time.time()
+                                    threadData.shared.counter += 1
+                                    num = threadData.shared.limits.next()
+                                except StopIteration:
+                                    break
+
+                            output = _errorFields(expression, expressionFields, expressionFieldsList, num, emptyFields, threadData.shared.showEta)
+
+                            if not kb.threadContinue:
                                 break
 
-                        output = _errorFields(expression, expressionFields, expressionFieldsList, num, emptyFields, threadData.shared.showEta)
+                            if output and isListLike(output) and len(output) == 1:
+                                output = output[0]
 
-                        if not kb.threadContinue:
-                            break
+                            with kb.locks.value:
+                                index = None
+                                if threadData.shared.showEta:
+                                    threadData.shared.progress.progress(time.time() - valueStart, threadData.shared.counter)
+                                for index in xrange(1 + len(threadData.shared.buffered)):
+                                    if index < len(threadData.shared.buffered) and threadData.shared.buffered[index][0] >= num:
+                                        break
+                                threadData.shared.buffered.insert(index or 0, (num, output))
+                                while threadData.shared.buffered and threadData.shared.lastFlushed + 1 == threadData.shared.buffered[0][0]:
+                                    threadData.shared.lastFlushed += 1
+                                    threadData.shared.value.append(threadData.shared.buffered[0][1])
+                                    del threadData.shared.buffered[0]
 
-                        if output and isListLike(output) and len(output) == 1:
-                            output = output[0]
+                    runThreads(numThreads, errorThread)
 
-                        with kb.locks.value:
-                            index = None
-                            if threadData.shared.showEta:
-                                threadData.shared.progress.progress(time.time() - valueStart, threadData.shared.counter)
-                            for index in xrange(1 + len(threadData.shared.buffered)):
-                                if index < len(threadData.shared.buffered) and threadData.shared.buffered[index][0] >= num:
-                                    break
-                            threadData.shared.buffered.insert(index or 0, (num, output))
-                            while threadData.shared.buffered and threadData.shared.lastFlushed + 1 == threadData.shared.buffered[0][0]:
-                                threadData.shared.lastFlushed += 1
-                                threadData.shared.value.append(threadData.shared.buffered[0][1])
-                                del threadData.shared.buffered[0]
+                except KeyboardInterrupt:
+                    abortedFlag = True
+                    warnMsg = "user aborted during enumeration. sqlmap "
+                    warnMsg += "will display partial output"
+                    logger.warn(warnMsg)
 
-                runThreads(numThreads, errorThread)
-
-            except KeyboardInterrupt:
-                abortedFlag = True
-                warnMsg = "user aborted during enumeration. sqlmap "
-                warnMsg += "will display partial output"
-                logger.warn(warnMsg)
-
-            finally:
-                threadData.shared.value.extend(_[1] for _ in sorted(threadData.shared.buffered))
-                value = threadData.shared.value
-                kb.suppressResumeInfo = False
+                finally:
+                    threadData.shared.value.extend(_[1] for _ in sorted(threadData.shared.buffered))
+                    value = threadData.shared.value
+                    kb.suppressResumeInfo = False
 
     if not value and not abortedFlag:
         value = _errorFields(expression, expressionFields, expressionFieldsList)

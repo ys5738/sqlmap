@@ -1,20 +1,24 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import sys
 
 sys.dont_write_bytecode = True
 
-__import__("lib.utils.versioncheck")  # this has to be the first non-standard import
+try:
+    __import__("lib.utils.versioncheck")  # this has to be the first non-standard import
+except ImportError:
+    exit("[!] wrong installation detected (missing modules). Visit 'https://github.com/sqlmapproject/sqlmap/#installation' for further details")
 
 import bdb
 import distutils
 import glob
 import inspect
+import json
 import logging
 import os
 import re
@@ -32,7 +36,6 @@ warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 from lib.core.data import logger
 
 try:
-    from lib.controller.controller import start
     from lib.core.common import banner
     from lib.core.common import checkIntegrity
     from lib.core.common import createGithubIssue
@@ -40,6 +43,7 @@ try:
     from lib.core.common import getSafeExString
     from lib.core.common import getUnicode
     from lib.core.common import maskSensitiveData
+    from lib.core.common import openFile
     from lib.core.common import setPaths
     from lib.core.common import weAreFrozen
     from lib.core.data import cmdLineOptions
@@ -53,15 +57,12 @@ try:
     from lib.core.exception import SqlmapUserQuitException
     from lib.core.option import initOptions
     from lib.core.option import init
-    from lib.core.profiling import profile
     from lib.core.settings import GIT_PAGE
     from lib.core.settings import IS_WIN
     from lib.core.settings import LEGAL_DISCLAIMER
     from lib.core.settings import THREAD_FINALIZATION_TIMEOUT
     from lib.core.settings import UNICODE_ENCODING
     from lib.core.settings import VERSION
-    from lib.core.testing import smokeTest
-    from lib.core.testing import liveTest
     from lib.parse.cmdline import cmdLineParser
 except KeyboardInterrupt:
     errMsg = "user aborted"
@@ -139,22 +140,28 @@ def main():
 
         init()
 
-        if conf.profile:
-            profile()
-        elif conf.smokeTest:
-            smokeTest()
-        elif conf.liveTest:
-            liveTest()
-        else:
-            try:
-                start()
-            except thread.error as ex:
-                if "can't start new thread" in getSafeExString(ex):
-                    errMsg = "unable to start new threads. Please check OS (u)limits"
-                    logger.critical(errMsg)
-                    raise SystemExit
-                else:
-                    raise
+        if not conf.updateAll:
+            # Postponed imports (faster start)
+            if conf.profile:
+                from lib.core.profiling import profile
+                profile()
+            elif conf.smokeTest:
+                from lib.core.testing import smokeTest
+                smokeTest()
+            elif conf.liveTest:
+                from lib.core.testing import liveTest
+                liveTest()
+            else:
+                from lib.controller.controller import start
+                try:
+                    start()
+                except thread.error as ex:
+                    if "can't start new thread" in getSafeExString(ex):
+                        errMsg = "unable to start new threads. Please check OS (u)limits"
+                        logger.critical(errMsg)
+                        raise SystemExit
+                    else:
+                        raise
 
     except SqlmapUserQuitException:
         errMsg = "user quit"
@@ -214,7 +221,7 @@ def main():
                 dataToStdout(excMsg)
                 raise SystemExit
 
-            elif "tamper/" in excMsg:
+            elif any(_ in excMsg for _ in ("tamper/", "waf/")):
                 logger.critical(errMsg)
                 print
                 dataToStdout(excMsg)
@@ -247,8 +254,26 @@ def main():
                 logger.error(errMsg)
                 raise SystemExit
 
+            elif "Violation of BIDI" in excMsg:
+                errMsg = "invalid URL (violation of Bidi IDNA rule - RFC 5893)"
+                logger.error(errMsg)
+                raise SystemExit
+
             elif "_mkstemp_inner" in excMsg:
                 errMsg = "there has been a problem while accessing temporary files"
+                logger.error(errMsg)
+                raise SystemExit
+
+            elif all(_ in excMsg for _ in ("twophase", "sqlalchemy")):
+                errMsg = "please update the 'sqlalchemy' package "
+                errMsg += "(Reference: https://github.com/apache/incubator-superset/issues/3447)"
+                logger.error(errMsg)
+                raise SystemExit
+
+            elif "must be pinned buffer, not bytearray" in excMsg:
+                errMsg = "error occurred at Python interpreter which "
+                errMsg += "is fixed in 2.7.x. Please update accordingly "
+                errMsg += "(Reference: https://bugs.python.org/issue8104)"
                 logger.error(errMsg)
                 raise SystemExit
 
@@ -260,7 +285,7 @@ def main():
                 logger.error(errMsg)
                 raise SystemExit
 
-            elif "'DictObject' object has no attribute 'query'" in excMsg and all(_ in errMsg for _ in ("(fingerprinted)", "(identified)")):
+            elif "'DictObject' object has no attribute '" in excMsg and all(_ in errMsg for _ in ("(fingerprinted)", "(identified)")):
                 errMsg = "there has been a problem in enumeration. "
                 errMsg += "Because of a considerable chance of false-positive case "
                 errMsg += "you are advised to rerun with switch '--flush-session'"
@@ -279,7 +304,18 @@ def main():
                 logger.error(errMsg)
                 raise SystemExit
 
-            elif "valueStack.pop" in excMsg and kb.get("dumpKeyboardInterrupt"):
+            elif "url = url.strip()" in excMsg:
+                dataToStdout(excMsg)
+                print
+                errMsg = "please contact 'miroslav@sqlmap.org' with details for this issue "
+                errMsg += "as he is trying to reproduce it for long time"
+                logger.error(errMsg)
+                raise SystemExit
+
+            elif kb.get("dumpKeyboardInterrupt"):
+                raise SystemExit
+
+            elif any(_ in excMsg for _ in ("Broken pipe",)):
                 raise SystemExit
 
             for match in re.finditer(r'File "(.+?)", line', excMsg):
@@ -327,6 +363,10 @@ def main():
             except KeyboardInterrupt:
                 pass
 
+        if conf.get("harFile"):
+            with openFile(conf.harFile, "w+b") as f:
+                json.dump(conf.httpCollector.obtain(), fp=f, indent=4, separators=(',', ': '))
+
         if cmdLineOptions.get("sqlmapShell"):
             cmdLineOptions.clear()
             conf.clear()
@@ -356,3 +396,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+else:
+    # cancelling postponed imports (because of Travis CI checks)
+    from lib.controller.controller import start

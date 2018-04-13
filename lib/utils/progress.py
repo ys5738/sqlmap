@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.common import getUnicode
@@ -62,8 +62,7 @@ class ProgressBar(object):
         elif numHashes == allFull:
             self._progBar = "[%s]" % ("=" * allFull)
         else:
-            self._progBar = "[%s>%s]" % ("=" * (numHashes - 1),
-                                          " " * (allFull - numHashes))
+            self._progBar = "[%s>%s]" % ("=" * (numHashes - 1), " " * (allFull - numHashes))
 
         # Add the percentage at the beginning of the progress bar
         percentString = getUnicode(percentDone) + "%"

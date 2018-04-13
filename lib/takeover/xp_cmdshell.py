@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.agent import agent
@@ -24,6 +24,7 @@ from lib.core.convert import hexencode
 from lib.core.data import conf
 from lib.core.data import kb
 from lib.core.data import logger
+from lib.core.decorators import stackedmethod
 from lib.core.enums import CHARSET_TYPE
 from lib.core.enums import DBMS
 from lib.core.enums import EXPECTED
@@ -96,6 +97,7 @@ class XP_cmdshell:
 
         return wasLastResponseDelayed()
 
+    @stackedmethod
     def _xpCmdshellTest(self):
         threadData = getCurrentThreadData()
         pushValue(threadData.disableStdOut)
@@ -163,7 +165,7 @@ class XP_cmdshell:
         # Obfuscate the command to execute, also useful to bypass filters
         # on single-quotes
         self._randStr = randomStr(lowercase=True)
-        self._cmd = "0x%s" % hexencode(cmd)
+        self._cmd = "0x%s" % hexencode(cmd, conf.encoding)
         self._forgedCmd = "DECLARE @%s VARCHAR(8000);" % self._randStr
         self._forgedCmd += "SET @%s=%s;" % (self._randStr, self._cmd)
 
@@ -214,7 +216,7 @@ class XP_cmdshell:
             if any(isTechniqueAvailable(_) for _ in (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) or conf.direct:
                 output = inject.getValue(query, resumeValue=False, blind=False, time=False)
 
-            if (output is None) or len(output)==0 or output[0] is None:
+            if (output is None) or len(output) == 0 or output[0] is None:
                 output = []
                 count = inject.getValue("SELECT COUNT(id) FROM %s" % self.cmdTblName, resumeValue=False, union=False, error=False, expected=EXPECTED.INT, charsetType=CHARSET_TYPE.DIGITS)
 

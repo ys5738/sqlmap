@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.common import Backend
@@ -79,6 +79,10 @@ class Fingerprint(GenericFingerprint):
                 logger.warn(warnMsg)
 
                 return False
+
+            # Determine if it is Informix >= 11.70
+            if inject.checkBooleanExpression("CHR(32)=' '"):
+                Backend.setVersion(">= 11.70")
 
             setDbms(DBMS.INFORMIX)
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.common import randomStr
@@ -108,7 +108,7 @@ class Enumeration(GenericEnumeration):
             conf.db = self.getCurrentDb()
 
         elif conf.db is not None:
-            if  ',' in conf.db:
+            if ',' in conf.db:
                 errMsg = "only one database name is allowed when enumerating "
                 errMsg += "the tables' columns"
                 raise SqlmapMissingMandatoryOptionException(errMsg)
@@ -120,8 +120,8 @@ class Enumeration(GenericEnumeration):
         else:
             colList = []
 
-        if conf.excludeCol:
-            colList = [_ for _ in colList if _ not in conf.excludeCol.split(',')]
+        if conf.exclude:
+            colList = [_ for _ in colList if _ not in conf.exclude.split(',')]
 
         for col in colList:
             colList[colList.index(col)] = safeSQLIdentificatorNaming(col)
@@ -184,9 +184,7 @@ class Enumeration(GenericEnumeration):
         rootQuery = queries[DBMS.MAXDB].columns
 
         for tbl in tblList:
-            if conf.db is not None and len(kb.data.cachedColumns) > 0 \
-              and conf.db in kb.data.cachedColumns and tbl in \
-              kb.data.cachedColumns[conf.db]:
+            if conf.db is not None and len(kb.data.cachedColumns) > 0 and conf.db in kb.data.cachedColumns and tbl in kb.data.cachedColumns[conf.db]:
                 infoMsg = "fetched tables' columns on "
                 infoMsg += "database '%s'" % unsafeSQLIdentificatorNaming(conf.db)
                 logger.info(infoMsg)
@@ -226,11 +224,9 @@ class Enumeration(GenericEnumeration):
 
         return {}
 
-    def searchDb(self):
-        warnMsg = "on SAP MaxDB it is not possible to search databases"
+    def search(self):
+        warnMsg = "on SAP MaxDB search option is not available"
         logger.warn(warnMsg)
-
-        return []
 
     def getHostname(self):
         warnMsg = "on SAP MaxDB it is not possible to enumerate the hostname"

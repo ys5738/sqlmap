@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import codecs
@@ -20,9 +20,9 @@ def profile(profileOutputFile=None, dotOutputFile=None, imageOutputFile=None):
     """
 
     try:
+        __import__("gobject")
         from thirdparty.gprof2dot import gprof2dot
         from thirdparty.xdot import xdot
-        import gobject
         import gtk
         import pydot
     except ImportError, e:

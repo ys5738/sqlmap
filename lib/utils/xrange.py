@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 class xrange(object):
@@ -69,7 +69,7 @@ class xrange(object):
         if isinstance(index, slice):
             start, stop, step = index.indices(self._len())
             return xrange(self._index(start),
-                          self._index(stop), step*self.step)
+                          self._index(stop), step * self.step)
         elif isinstance(index, (int, long)):
             if index < 0:
                 fixed_index = index + self._len()

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import imp
@@ -46,7 +46,7 @@ class SQLAlchemy(GenericConnector):
             try:
                 if not self.port and self.db:
                     if not os.path.exists(self.db):
-                        raise SqlmapFilePathException, "the provided database file '%s' does not exist" % self.db
+                        raise SqlmapFilePathException("the provided database file '%s' does not exist" % self.db)
 
                     _ = conf.direct.split("//", 1)
                     conf.direct = "%s////%s" % (_[0], os.path.abspath(self.db))
@@ -54,7 +54,13 @@ class SQLAlchemy(GenericConnector):
                 if self.dialect:
                     conf.direct = conf.direct.replace(conf.dbms, self.dialect, 1)
 
-                engine = _sqlalchemy.create_engine(conf.direct, connect_args={"check_same_thread": False} if self.dialect == "sqlite" else {})
+                if self.dialect == "sqlite":
+                    engine = _sqlalchemy.create_engine(conf.direct, connect_args={"check_same_thread": False})
+                elif self.dialect == "oracle":
+                    engine = _sqlalchemy.create_engine(conf.direct, connect_args={"allow_twophase": False})
+                else:
+                    engine = _sqlalchemy.create_engine(conf.direct, connect_args={})
+
                 self.connector = engine.connect()
             except (TypeError, ValueError):
                 if "_get_server_version_info" in traceback.format_exc():
@@ -64,6 +70,8 @@ class SQLAlchemy(GenericConnector):
                             raise SqlmapConnectionException("SQLAlchemy connection issue (obsolete version of pymssql ('%s') is causing problems)" % pymssql.__version__)
                     except ImportError:
                         pass
+                elif "invalid literal for int() with base 10: '0b" in traceback.format_exc():
+                    raise SqlmapConnectionException("SQLAlchemy connection issue ('https://bitbucket.org/zzzeek/sqlalchemy/issues/3975')")
                 raise
             except SqlmapFilePathException:
                 raise

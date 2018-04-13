@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import re
@@ -41,18 +41,19 @@ class Fingerprint(GenericFingerprint):
 
         # Reference: https://downloads.mysql.com/archives/community/
         versions = (
-                     (32200, 32235),    # MySQL 3.22
-                     (32300, 32359),    # MySQL 3.23
-                     (40000, 40032),    # MySQL 4.0
-                     (40100, 40131),    # MySQL 4.1
-                     (50000, 50096),    # MySQL 5.0
-                     (50100, 50172),    # MySQL 5.1
-                     (50400, 50404),    # MySQL 5.4
-                     (50500, 50554),    # MySQL 5.5
-                     (50600, 50635),    # MySQL 5.6
-                     (50700, 50717),    # MySQL 5.7
-                     (60000, 60014),    # MySQL 6.0
-                   )
+            (32200, 32235),  # MySQL 3.22
+            (32300, 32359),  # MySQL 3.23
+            (40000, 40032),  # MySQL 4.0
+            (40100, 40131),  # MySQL 4.1
+            (50000, 50096),  # MySQL 5.0
+            (50100, 50172),  # MySQL 5.1
+            (50400, 50404),  # MySQL 5.4
+            (50500, 50558),  # MySQL 5.5
+            (50600, 50638),  # MySQL 5.6
+            (50700, 50720),  # MySQL 5.7
+            (60000, 60014),  # MySQL 6.0
+            (80000, 80003),  # MySQL 8.0
+        )
 
         index = -1
         for i in xrange(len(versions)):
@@ -125,7 +126,7 @@ class Fingerprint(GenericFingerprint):
         if kb.bannerFp:
             banVer = kb.bannerFp["dbmsVersion"] if "dbmsVersion" in kb.bannerFp else None
 
-            if banVer and re.search("-log$", kb.data.banner):
+            if banVer and re.search(r"-log$", kb.data.banner):
                 banVer += ", logging enabled"
 
             banVer = Format.getDbms([banVer] if banVer else None)

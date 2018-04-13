@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.enums import DBMS
@@ -184,10 +184,10 @@ DUMP_REPLACEMENTS = {" ": NULL, "": BLANK}
 
 DBMS_DICT = {
     DBMS.MSSQL: (MSSQL_ALIASES, "python-pymssql", "https://github.com/pymssql/pymssql", "mssql+pymssql"),
-    DBMS.MYSQL: (MYSQL_ALIASES, "python-pymysql", "https://github.com/petehunt/PyMySQL/", "mysql"),
+    DBMS.MYSQL: (MYSQL_ALIASES, "python-pymysql", "https://github.com/PyMySQL/PyMySQL", "mysql"),
     DBMS.PGSQL: (PGSQL_ALIASES, "python-psycopg2", "http://initd.org/psycopg/", "postgresql"),
-    DBMS.ORACLE: (ORACLE_ALIASES, "python cx_Oracle", "http://cx-oracle.sourceforge.net/", "oracle"),
-    DBMS.SQLITE: (SQLITE_ALIASES, "python-sqlite", "http://packages.ubuntu.com/quantal/python-sqlite", "sqlite"),
+    DBMS.ORACLE: (ORACLE_ALIASES, "python cx_Oracle", "https://oracle.github.io/python-cx_Oracle/", "oracle"),
+    DBMS.SQLITE: (SQLITE_ALIASES, "python-sqlite", "https://docs.python.org/2/library/sqlite3.html", "sqlite"),
     DBMS.ACCESS: (ACCESS_ALIASES, "python-pyodbc", "https://github.com/mkleehammer/pyodbc", "access"),
     DBMS.FIREBIRD: (FIREBIRD_ALIASES, "python-kinterbasdb", "http://kinterbasdb.sourceforge.net/", "firebird"),
     DBMS.MAXDB: (MAXDB_ALIASES, None, None, "maxdb"),
@@ -208,54 +208,60 @@ FROM_DUMMY_TABLE = {
 }
 
 SQL_STATEMENTS = {
-    "SQL SELECT statement":  (
-            "select ",
-            "show ",
-            " top ",
-            " distinct ",
-            " from ",
-            " from dual",
-            " where ",
-            " group by ",
-            " order by ",
-            " having ",
-            " limit ",
-            " offset ",
-            " union all ",
-            " rownum as ",
-            "(case ",        ),
+    "SQL SELECT statement": (
+        "select ",
+        "show ",
+        " top ",
+        " distinct ",
+        " from ",
+        " from dual",
+        " where ",
+        " group by ",
+        " order by ",
+        " having ",
+        " limit ",
+        " offset ",
+        " union all ",
+        " rownum as ",
+        "(case ",
+    ),
 
-    "SQL data definition":   (
+    "SQL data definition": (
         "create ",
         "declare ",
         "drop ",
         "truncate ",
-        "alter ",            ),
+        "alter ",
+    ),
 
     "SQL data manipulation": (
-            "bulk ",
-            "insert ",
-            "update ",
-            "delete ",
-            "merge ",
-            "load ",         ),
+        "bulk ",
+        "insert ",
+        "update ",
+        "delete ",
+        "merge ",
+        "load ",
+    ),
 
-    "SQL data control":      (
-            "grant ",
-            "revoke ",       ),
+    "SQL data control": (
+        "grant ",
+        "revoke ",
+    ),
 
-    "SQL data execution":    (
-            "exec ",
-            "execute ",
-            "values ", 
-            "call ",         ),
+    "SQL data execution": (
+        "exec ",
+        "execute ",
+        "values ",
+        "call ",
+    ),
 
-    "SQL transaction":       (
-            "start transaction ",
-            "begin work ",
-            "begin transaction ",
-            "commit ",
-            "rollback ",     ),
+    "SQL transaction": (
+        "start transaction ",
+        "begin work ",
+        "begin transaction ",
+        "commit ",
+        "rollback ",
+    ),
 }
 
 POST_HINT_CONTENT_TYPES = {
@@ -272,6 +278,7 @@ DEPRECATED_OPTIONS = {
     "--no-unescape": "use '--no-escape' instead",
     "--binary": "use '--binary-fields' instead",
     "--auth-private": "use '--auth-file' instead",
+    "--ignore-401": "use '--ignore-code' instead",
     "--check-payload": None,
     "--check-waf": None,
     "--pickled-options": "use '--api -c ...' instead",

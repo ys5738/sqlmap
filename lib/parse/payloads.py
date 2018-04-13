@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import os
@@ -78,7 +78,7 @@ def loadBoundaries():
         errMsg = "something appears to be wrong with "
         errMsg += "the file '%s' ('%s'). Please make " % (paths.BOUNDARIES_XML, getSafeExString(ex))
         errMsg += "sure that you haven't made any changes to it"
-        raise SqlmapInstallationException, errMsg
+        raise SqlmapInstallationException(errMsg)
 
     root = doc.getroot()
     parseXmlNode(root)
@@ -93,7 +93,7 @@ def loadPayloads():
             errMsg = "something appears to be wrong with "
             errMsg += "the file '%s' ('%s'). Please make " % (payloadFilePath, getSafeExString(ex))
             errMsg += "sure that you haven't made any changes to it"
-            raise SqlmapInstallationException, errMsg
+            raise SqlmapInstallationException(errMsg)
 
         root = doc.getroot()
         parseXmlNode(root)

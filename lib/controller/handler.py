@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.common import Backend
@@ -56,26 +56,36 @@ def setHandler():
     """
 
     items = [
-                  (DBMS.MYSQL, MYSQL_ALIASES, MySQLMap, MySQLConn),
-                  (DBMS.ORACLE, ORACLE_ALIASES, OracleMap, OracleConn),
-                  (DBMS.PGSQL, PGSQL_ALIASES, PostgreSQLMap, PostgreSQLConn),
-                  (DBMS.MSSQL, MSSQL_ALIASES, MSSQLServerMap, MSSQLServerConn),
-                  (DBMS.SQLITE, SQLITE_ALIASES, SQLiteMap, SQLiteConn),
-                  (DBMS.ACCESS, ACCESS_ALIASES, AccessMap, AccessConn),
-                  (DBMS.FIREBIRD, FIREBIRD_ALIASES, FirebirdMap, FirebirdConn),
-                  (DBMS.MAXDB, MAXDB_ALIASES, MaxDBMap, MaxDBConn),
-                  (DBMS.SYBASE, SYBASE_ALIASES, SybaseMap, SybaseConn),
-                  (DBMS.DB2, DB2_ALIASES, DB2Map, DB2Conn),
-                  (DBMS.HSQLDB, HSQLDB_ALIASES, HSQLDBMap, HSQLDBConn),
-                  (DBMS.INFORMIX, INFORMIX_ALIASES, InformixMap, InformixConn),
-            ]
+        (DBMS.MYSQL, MYSQL_ALIASES, MySQLMap, MySQLConn),
+        (DBMS.ORACLE, ORACLE_ALIASES, OracleMap, OracleConn),
+        (DBMS.PGSQL, PGSQL_ALIASES, PostgreSQLMap, PostgreSQLConn),
+        (DBMS.MSSQL, MSSQL_ALIASES, MSSQLServerMap, MSSQLServerConn),
+        (DBMS.SQLITE, SQLITE_ALIASES, SQLiteMap, SQLiteConn),
+        (DBMS.ACCESS, ACCESS_ALIASES, AccessMap, AccessConn),
+        (DBMS.FIREBIRD, FIREBIRD_ALIASES, FirebirdMap, FirebirdConn),
+        (DBMS.MAXDB, MAXDB_ALIASES, MaxDBMap, MaxDBConn),
+        (DBMS.SYBASE, SYBASE_ALIASES, SybaseMap, SybaseConn),
+        (DBMS.DB2, DB2_ALIASES, DB2Map, DB2Conn),
+        (DBMS.HSQLDB, HSQLDB_ALIASES, HSQLDBMap, HSQLDBConn),
+        (DBMS.INFORMIX, INFORMIX_ALIASES, InformixMap, InformixConn),
+    ]
 
-    _ = max(_ if (Backend.getIdentifiedDbms() or "").lower() in _[1] else None for _ in items)
+    _ = max(_ if (conf.get("dbms") or Backend.getIdentifiedDbms() or kb.heuristicExtendedDbms or "").lower() in _[1] else None for _ in items)
     if _:
         items.remove(_)
         items.insert(0, _)
 
     for dbms, aliases, Handler, Connector in items:
+        if conf.forceDbms:
+            if conf.forceDbms.lower() not in aliases:
+                continue
+            else:
+                kb.dbms = conf.dbms = conf.forceDbms = dbms
+
+        if kb.dbmsFilter:
+            if dbms not in kb.dbmsFilter:
+                continue
+
         handler = Handler()
         conf.dbmsConnector = Connector()
 
@@ -96,7 +106,7 @@ def setHandler():
             else:
                 conf.dbmsConnector.connect()
 
-        if handler.checkDbms():
+        if conf.forceDbms == dbms or handler.checkDbms():
             if kb.resolutionDbms:
                 conf.dbmsHandler = max(_ for _ in items if _[0] == kb.resolutionDbms)[2]()
             else:

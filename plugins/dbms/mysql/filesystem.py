@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.common import isNumPosStrValue
@@ -14,6 +14,7 @@ from lib.core.common import singleTimeWarnMessage
 from lib.core.data import conf
 from lib.core.data import kb
 from lib.core.data import logger
+from lib.core.decorators import stackedmethod
 from lib.core.enums import CHARSET_TYPE
 from lib.core.enums import EXPECTED
 from lib.core.enums import PAYLOAD
@@ -68,20 +69,20 @@ class Filesystem(GenericFilesystem):
                 raise SqlmapNoneDataException(warnMsg)
         else:
             length = int(length)
-            sustrLen = 1024
+            chunkSize = 1024
 
-            if length > sustrLen:
+            if length > chunkSize:
                 result = []
 
-                for i in xrange(1, length, sustrLen):
-                    chunk = inject.getValue("SELECT MID(%s, %d, %d) FROM %s" % (self.tblField, i, sustrLen, self.fileTblName), unpack=False, resumeValue=False, charsetType=CHARSET_TYPE.HEXADECIMAL)
-
+                for i in xrange(1, length, chunkSize):
+                    chunk = inject.getValue("SELECT MID(%s, %d, %d) FROM %s" % (self.tblField, i, chunkSize, self.fileTblName), unpack=False, resumeValue=False, charsetType=CHARSET_TYPE.HEXADECIMAL)
                     result.append(chunk)
             else:
                 result = inject.getValue("SELECT %s FROM %s" % (self.tblField, self.fileTblName), resumeValue=False, charsetType=CHARSET_TYPE.HEXADECIMAL)
 
         return result
 
+    @stackedmethod
     def unionWriteFile(self, wFile, dFile, fileType, forceCheck=False):
         logger.debug("encoding file to its hexadecimal string value")
 

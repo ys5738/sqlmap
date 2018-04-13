@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.agent import agent
@@ -14,6 +14,7 @@ from lib.core.common import isNumPosStrValue
 from lib.core.common import isTechniqueAvailable
 from lib.core.common import safeSQLIdentificatorNaming
 from lib.core.common import safeStringFormat
+from lib.core.common import singleTimeLogMessage
 from lib.core.common import unArrayizeValue
 from lib.core.common import unsafeSQLIdentificatorNaming
 from lib.core.data import conf
@@ -94,8 +95,12 @@ class Enumeration(GenericEnumeration):
             for db in dbs:
                 if conf.excludeSysDbs and db in self.excludeDbsList:
                     infoMsg = "skipping system database '%s'" % db
-                    logger.info(infoMsg)
+                    singleTimeLogMessage(infoMsg)
+                    continue
 
+                if conf.exclude and db in conf.exclude.split(','):
+                    infoMsg = "skipping database '%s'" % db
+                    singleTimeLogMessage(infoMsg)
                     continue
 
                 for query in (rootQuery.inband.query, rootQuery.inband.query2, rootQuery.inband.query3):
@@ -113,8 +118,12 @@ class Enumeration(GenericEnumeration):
             for db in dbs:
                 if conf.excludeSysDbs and db in self.excludeDbsList:
                     infoMsg = "skipping system database '%s'" % db
-                    logger.info(infoMsg)
+                    singleTimeLogMessage(infoMsg)
+                    continue
 
+                if conf.exclude and db in conf.exclude.split(','):
+                    infoMsg = "skipping database '%s'" % db
+                    singleTimeLogMessage(infoMsg)
                     continue
 
                 infoMsg = "fetching number of tables for "
@@ -199,8 +208,12 @@ class Enumeration(GenericEnumeration):
 
                 if conf.excludeSysDbs and db in self.excludeDbsList:
                     infoMsg = "skipping system database '%s'" % db
-                    logger.info(infoMsg)
+                    singleTimeLogMessage(infoMsg)
+                    continue
 
+                if conf.exclude and db in conf.exclude.split(','):
+                    infoMsg = "skipping database '%s'" % db
+                    singleTimeLogMessage(infoMsg)
                     continue
 
                 if any(isTechniqueAvailable(_) for _ in (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) or conf.direct:
@@ -271,8 +284,8 @@ class Enumeration(GenericEnumeration):
         infoMsgDb = ""
         colList = conf.col.split(',')
 
-        if conf.excludeCol:
-            colList = [_ for _ in colList if _ not in conf.excludeCol.split(',')]
+        if conf.exclude:
+            colList = [_ for _ in colList if _ not in conf.exclude.split(',')]
 
         origTbl = conf.tbl
         origDb = conf.db
@@ -318,8 +331,7 @@ class Enumeration(GenericEnumeration):
                 _ = conf.db.split(',')
                 infoMsgDb = " in database%s '%s'" % ("s" if len(_) > 1 else "", ", ".join(db for db in _))
             elif conf.excludeSysDbs:
-                msg = "skipping system database%s '%s'" % ("s" if len(self.excludeDbsList) > 1 else "", ", ".join(db for db in self.excludeDbsList))
-                logger.info(msg)
+                infoMsgDb = " not in system database%s '%s'" % ("s" if len(self.excludeDbsList) > 1 else "", ", ".join(db for db in self.excludeDbsList))
             else:
                 infoMsgDb = " across all databases"
 
@@ -332,6 +344,9 @@ class Enumeration(GenericEnumeration):
                 db = safeSQLIdentificatorNaming(db)
 
                 if conf.excludeSysDbs and db in self.excludeDbsList:
+                    continue
+
+                if conf.exclude and db in conf.exclude.split(','):
                     continue
 
                 if any(isTechniqueAvailable(_) for _ in (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) or conf.direct:
@@ -353,16 +368,16 @@ class Enumeration(GenericEnumeration):
                             if foundTbl not in dbs[db]:
                                 dbs[db][foundTbl] = {}
 
-                            if colConsider == "1":
+                            if colConsider == '1':
                                 conf.db = db
                                 conf.tbl = foundTbl
                                 conf.col = column
 
                                 self.getColumns(onlyColNames=True, colTuple=(colConsider, colCondParam), bruteForce=False)
 
-                                if db in kb.data.cachedColumns and foundTbl in kb.data.cachedColumns[db]\
-                                  and not isNoneValue(kb.data.cachedColumns[db][foundTbl]):
+                                if db in kb.data.cachedColumns and foundTbl in kb.data.cachedColumns[db] and not isNoneValue(kb.data.cachedColumns[db][foundTbl]):
                                     dbs[db][foundTbl].update(kb.data.cachedColumns[db][foundTbl])
+
                                 kb.data.cachedColumns = {}
                             else:
                                 dbs[db][foundTbl][column] = None

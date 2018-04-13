@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 class _Getch(object):
@@ -25,7 +25,7 @@ class _Getch(object):
 
 class _GetchUnix(object):
     def __init__(self):
-        import tty
+        __import__("tty")
 
     def __call__(self):
         import sys
@@ -44,7 +44,7 @@ class _GetchUnix(object):
 
 class _GetchWindows(object):
     def __init__(self):
-        import msvcrt
+        __import__("msvcrt")
 
     def __call__(self):
         import msvcrt
@@ -81,4 +81,3 @@ class _GetchMacCarbon(object):
 
 
 getch = _Getch()
-

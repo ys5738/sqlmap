@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import re
@@ -48,11 +48,12 @@ class Fingerprint(GenericFingerprint):
 
         # Microsoft Access table reference updated on 01/2010
         sysTables = {
-                      "97":           ("MSysModules2", "MSysAccessObjects"),
-                      "2000" :        ("!MSysModules2", "MSysAccessObjects"),
-                      "2002-2003" :   ("MSysAccessStorage", "!MSysNavPaneObjectIDs"),
-                      "2007" :        ("MSysAccessStorage", "MSysNavPaneObjectIDs"),
-                    }
+            "97": ("MSysModules2", "MSysAccessObjects"),
+            "2000": ("!MSysModules2", "MSysAccessObjects"),
+            "2002-2003": ("MSysAccessStorage", "!MSysNavPaneObjectIDs"),
+            "2007": ("MSysAccessStorage", "MSysNavPaneObjectIDs"),
+        }
+
         # MSysAccessXML is not a reliable system table because it doesn't always exist
         # ("Access through Access", p6, should be "normally doesn't exist" instead of "is normally empty")
 
@@ -94,7 +95,7 @@ class Fingerprint(GenericFingerprint):
 
         if wasLastResponseDBMSError():
             threadData = getCurrentThreadData()
-            match = re.search("Could not find file\s+'([^']+?)'", threadData.lastErrorPage[1])
+            match = re.search(r"Could not find file\s+'([^']+?)'", threadData.lastErrorPage[1])
 
             if match:
                 retVal = match.group(1).rstrip("%s.mdb" % randStr)
@@ -130,7 +131,7 @@ class Fingerprint(GenericFingerprint):
         if kb.bannerFp:
             banVer = kb.bannerFp["dbmsVersion"]
 
-            if re.search("-log$", kb.data.banner):
+            if re.search(r"-log$", kb.data.banner):
                 banVer += ", logging enabled"
 
             banVer = Format.getDbms([banVer])

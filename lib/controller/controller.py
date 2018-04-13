@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import os
@@ -43,6 +43,7 @@ from lib.core.common import urldecode
 from lib.core.data import conf
 from lib.core.data import kb
 from lib.core.data import logger
+from lib.core.decorators import stackedmethod
 from lib.core.enums import CONTENT_TYPE
 from lib.core.enums import HASHDB_KEYS
 from lib.core.enums import HEURISTIC_TEST
@@ -54,6 +55,7 @@ from lib.core.exception import SqlmapBaseException
 from lib.core.exception import SqlmapNoneDataException
 from lib.core.exception import SqlmapNotVulnerableException
 from lib.core.exception import SqlmapSilentQuitException
+from lib.core.exception import SqlmapSkipTargetException
 from lib.core.exception import SqlmapValueException
 from lib.core.exception import SqlmapUserQuitException
 from lib.core.settings import ASP_NET_CONTROL_REGEX
@@ -151,12 +153,15 @@ def _formatInjection(inj):
             vector = "%s%s" % (vector, comment)
         data += "    Type: %s\n" % PAYLOAD.SQLINJECTION[stype]
         data += "    Title: %s\n" % title
-        data += "    Payload: %s\n" % urldecode(payload, unsafe="&", plusspace=(inj.place != PLACE.GET and kb.postSpaceToPlus))
+        data += "    Payload: %s\n" % urldecode(payload, unsafe="&", spaceplus=(inj.place != PLACE.GET and kb.postSpaceToPlus))
         data += "    Vector: %s\n\n" % vector if conf.verbose > 1 else "\n"
 
     return data
 
 def _showInjections():
+    if conf.wizard and kb.wizardMode:
+        kb.wizardMode = False
+
     if kb.testQueryCount > 0:
         header = "sqlmap identified the following injection point(s) with "
         header += "a total of %d HTTP(s) requests" % kb.testQueryCount
@@ -241,12 +246,15 @@ def _saveToResultsFile():
     for key, value in results.items():
         place, parameter, notes = key
         line = "%s,%s,%s,%s,%s%s" % (safeCSValue(kb.originalUrls.get(conf.url) or conf.url), place, parameter, "".join(techniques[_][0].upper() for _ in sorted(value)), notes, os.linesep)
-        conf.resultsFP.writelines(line)
+        conf.resultsFP.write(line)
 
     if not results:
         line = "%s,,,,%s" % (conf.url, os.linesep)
-        conf.resultsFP.writelines(line)
+        conf.resultsFP.write(line)
 
+    conf.resultsFP.flush()
+
+@stackedmethod
 def start():
     """
     This function calls a function that performs checks on both URL
@@ -280,7 +288,7 @@ def start():
         try:
 
             if conf.checkInternet:
-                infoMsg = "[INFO] checking for Internet connection"
+                infoMsg = "checking for Internet connection"
                 logger.info(infoMsg)
 
                 if not checkInternet():
@@ -365,9 +373,8 @@ def start():
                             conf.data = urldecode(conf.data) if conf.data and urlencode(DEFAULT_GET_POST_DELIMITER, None) not in conf.data else conf.data
 
                         else:
-                            if targetUrl.find("?") > -1:
-                                firstPart = targetUrl[:targetUrl.find("?")]
-                                secondPart = targetUrl[targetUrl.find("?") + 1:]
+                            if '?' in targetUrl:
+                                firstPart, secondPart = targetUrl.split('?', 1)
                                 message = "Edit GET data [default: %s]: " % secondPart
                                 test = readInput(message, default=secondPart)
                                 test = _randomFillBlankFields(test)
@@ -401,8 +408,7 @@ def start():
             if conf.nullConnection:
                 checkNullConnection()
 
-            if (len(kb.injections) == 0 or (len(kb.injections) == 1 and kb.injections[0].place is None)) \
-                and (kb.injection.place is None or kb.injection.parameter is None):
+            if (len(kb.injections) == 0 or (len(kb.injections) == 1 and kb.injections[0].place is None)) and (kb.injection.place is None or kb.injection.parameter is None):
 
                 if not any((conf.string, conf.notString, conf.regexp)) and PAYLOAD.TECHNIQUE.BOOLEAN in conf.tech:
                     # NOTE: this is not needed anymore, leaving only to display
@@ -580,11 +586,11 @@ def start():
                     errMsg += "(e.g. GET parameter 'id' in 'www.site.com/index.php?id=1')"
                     raise SqlmapNoneDataException(errMsg)
                 else:
-                    errMsg = "all tested parameters appear to be not injectable."
+                    errMsg = "all tested parameters do not appear to be injectable."
 
                     if conf.level < 5 or conf.risk < 3:
-                        errMsg += " Try to increase '--level'/'--risk' values "
-                        errMsg += "to perform more tests."
+                        errMsg += " Try to increase values for '--level'/'--risk' options "
+                        errMsg += "if you wish to perform more tests."
 
                     if isinstance(conf.tech, list) and len(conf.tech) < 5:
                         errMsg += " Rerun without providing the option '--technique'."
@@ -607,15 +613,9 @@ def start():
 
                     if kb.heuristicTest == HEURISTIC_TEST.POSITIVE:
                         errMsg += " As heuristic test turned out positive you are "
-                        errMsg += "strongly advised to continue on with the tests. "
-                        errMsg += "Please, consider usage of tampering scripts as "
-                        errMsg += "your target might filter the queries."
+                        errMsg += "strongly advised to continue on with the tests."
 
-                    if not conf.string and not conf.notString and not conf.regexp:
-                        errMsg += " Also, you can try to rerun by providing "
-                        errMsg += "either a valid value for option '--string' "
-                        errMsg += "(or '--regexp')."
-                    elif conf.string:
+                    if conf.string:
                         errMsg += " Also, you can try to rerun by providing a "
                         errMsg += "valid value for option '--string' as perhaps the string you "
                         errMsg += "have chosen does not match "
@@ -628,8 +628,8 @@ def start():
 
                     if not conf.tamper:
                         errMsg += " If you suspect that there is some kind of protection mechanism "
-                        errMsg += "involved (e.g. WAF) maybe you could retry "
-                        errMsg += "with an option '--tamper' (e.g. '--tamper=space2comment')"
+                        errMsg += "involved (e.g. WAF) maybe you could try to use "
+                        errMsg += "option '--tamper' (e.g. '--tamper=space2comment')"
 
                     raise SqlmapNotVulnerableException(errMsg.rstrip('.'))
             else:
@@ -665,6 +665,9 @@ def start():
                     raise SqlmapUserQuitException
             else:
                 raise
+
+        except SqlmapSkipTargetException:
+            pass
 
         except SqlmapUserQuitException:
             raise

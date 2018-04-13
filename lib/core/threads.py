@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import difflib
@@ -64,9 +64,6 @@ class _ThreadData(threading.local):
 
 ThreadData = _ThreadData()
 
-def getCurrentThreadUID():
-    return hash(threading.currentThread())
-
 def readInput(message, default=None, checkBatch=True, boolean=False):
     # It will be overwritten by original from lib.core.common
     pass
@@ -97,6 +94,9 @@ def exceptionHandledFunction(threadFunction, silent=False):
     except Exception, ex:
         if not silent:
             logger.error("thread %s: %s" % (threading.currentThread().getName(), ex.message))
+
+            if conf.verbose > 1:
+                traceback.print_exc()
 
 def setDaemon(thread):
     # Reference: http://stackoverflow.com/questions/190010/daemon-threads-explanation
@@ -187,6 +187,9 @@ def runThreads(numThreads, threadFunction, cleanupFunction=None, forwardExceptio
         print
         kb.threadException = True
         logger.error("thread %s: %s" % (threading.currentThread().getName(), ex.message))
+
+        if conf.verbose > 1:
+            traceback.print_exc()
 
     except:
         from lib.core.common import unhandledExceptionMessage

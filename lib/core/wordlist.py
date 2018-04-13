@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import os
@@ -47,7 +47,7 @@ class Wordlist(object):
                     errMsg = "something appears to be wrong with "
                     errMsg += "the file '%s' ('%s'). Please make " % (self.current, getSafeExString(ex))
                     errMsg += "sure that you haven't made any changes to it"
-                    raise SqlmapInstallationException, errMsg
+                    raise SqlmapInstallationException(errMsg)
                 if len(_.namelist()) == 0:
                     errMsg = "no file(s) inside '%s'" % self.current
                     raise SqlmapDataException(errMsg)
@@ -73,7 +73,7 @@ class Wordlist(object):
                 errMsg = "something appears to be wrong with "
                 errMsg += "the file '%s' ('%s'). Please make " % (self.current, getSafeExString(ex))
                 errMsg += "sure that you haven't made any changes to it"
-                raise SqlmapInstallationException, errMsg
+                raise SqlmapInstallationException(errMsg)
             except StopIteration:
                 self.adjust()
                 retVal = self.iter.next().rstrip()

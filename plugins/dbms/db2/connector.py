@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 try:
     import ibm_db_dbi
-except ImportError:
+except:
     pass
 
 import logging
@@ -36,7 +36,6 @@ class Connector(GenericConnector):
             self.connector = ibm_db_dbi.connect(database, self.user, self.password)
         except ibm_db_dbi.OperationalError, msg:
             raise SqlmapConnectionException(msg)
-
 
         self.initCursor()
         self.printConnected()

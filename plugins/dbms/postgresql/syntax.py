@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from plugins.generic.syntax import Syntax as GenericSyntax
@@ -22,6 +22,6 @@ class Syntax(GenericSyntax):
         """
 
         def escaper(value):
-            return "(%s)"  % "||".join("CHR(%d)" % ord(_) for _ in value)  # Postgres CHR() function already accepts Unicode code point of character(s)
+            return "(%s)" % "||".join("CHR(%d)" % ord(_) for _ in value)  # Postgres CHR() function already accepts Unicode code point of character(s)
 
         return Syntax._escape(expression, quote, escaper)

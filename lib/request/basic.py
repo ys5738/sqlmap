@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import codecs
@@ -18,11 +18,13 @@ from lib.core.common import extractErrorMessage
 from lib.core.common import extractRegexResult
 from lib.core.common import getPublicTypeMembers
 from lib.core.common import getUnicode
+from lib.core.common import isListLike
 from lib.core.common import randomStr
 from lib.core.common import readInput
 from lib.core.common import resetCookieJar
 from lib.core.common import singleTimeLogMessage
 from lib.core.common import singleTimeWarnMessage
+from lib.core.common import unArrayizeValue
 from lib.core.data import conf
 from lib.core.data import kb
 from lib.core.data import logger
@@ -33,6 +35,7 @@ from lib.core.enums import PLACE
 from lib.core.exception import SqlmapCompressionException
 from lib.core.settings import BLOCKED_IP_REGEX
 from lib.core.settings import DEFAULT_COOKIE_DELIMITER
+from lib.core.settings import DEV_EMAIL_ADDRESS
 from lib.core.settings import EVENTVALIDATION_REGEX
 from lib.core.settings import MAX_CONNECTION_TOTAL_SIZE
 from lib.core.settings import META_CHARSET_REGEX
@@ -46,7 +49,7 @@ from lib.utils.htmlentities import htmlEntities
 from thirdparty.chardet import detect
 from thirdparty.odict.odict import OrderedDict
 
-def forgeHeaders(items=None):
+def forgeHeaders(items=None, base=None):
     """
     Prepare HTTP Cookie, HTTP User-Agent and HTTP Referer headers to use when performing
     the HTTP requests
@@ -58,7 +61,7 @@ def forgeHeaders(items=None):
         if items[_] is None:
             del items[_]
 
-    headers = OrderedDict(conf.httpHeaders)
+    headers = OrderedDict(conf.httpHeaders if base is None else base)
     headers.update(items.items())
 
     class _str(str):
@@ -92,10 +95,10 @@ def forgeHeaders(items=None):
     if conf.cj:
         if HTTP_HEADER.COOKIE in headers:
             for cookie in conf.cj:
-                if cookie.domain_specified and not conf.hostname.endswith(cookie.domain):
+                if cookie.domain_specified and not (conf.hostname or "").endswith(cookie.domain):
                     continue
 
-                if ("%s=" % getUnicode(cookie.name)) in headers[HTTP_HEADER.COOKIE]:
+                if ("%s=" % getUnicode(cookie.name)) in getUnicode(headers[HTTP_HEADER.COOKIE]):
                     if conf.loadCookies:
                         conf.httpHeaders = filter(None, ((item if item[0] != HTTP_HEADER.COOKIE else None) for item in conf.httpHeaders))
                     elif kb.mergeCookies is None:
@@ -107,7 +110,9 @@ def forgeHeaders(items=None):
                         kb.mergeCookies = readInput(message, default='Y', boolean=True)
 
                     if kb.mergeCookies and kb.injection.place != PLACE.COOKIE:
-                        _ = lambda x: re.sub(r"(?i)\b%s=[^%s]+" % (re.escape(getUnicode(cookie.name)), conf.cookieDel or DEFAULT_COOKIE_DELIMITER), ("%s=%s" % (getUnicode(cookie.name), getUnicode(cookie.value))).replace('\\', r'\\'), x)
+                        def _(value):
+                            return re.sub(r"(?i)\b%s=[^%s]+" % (re.escape(getUnicode(cookie.name)), conf.cookieDel or DEFAULT_COOKIE_DELIMITER), ("%s=%s" % (getUnicode(cookie.name), getUnicode(cookie.value))).replace('\\', r'\\'), value)
+
                         headers[HTTP_HEADER.COOKIE] = _(headers[HTTP_HEADER.COOKIE])
 
                         if PLACE.COOKIE in conf.parameters:
@@ -149,13 +154,16 @@ def checkCharEncoding(encoding, warn=True):
     'utf8'
     """
 
+    if isListLike(encoding):
+        encoding = unArrayizeValue(encoding)
+
     if encoding:
         encoding = encoding.lower()
     else:
         return encoding
 
     # Reference: http://www.destructor.de/charsets/index.htm
-    translate = {"windows-874": "iso-8859-11", "utf-8859-1": "utf8", "en_us": "utf8", "macintosh": "iso-8859-1", "euc_tw": "big5_tw", "th": "tis-620", "unicode": "utf8",  "utc8": "utf8", "ebcdic": "ebcdic-cp-be", "iso-8859": "iso8859-1", "ansi": "ascii", "gbk2312": "gbk", "windows-31j": "cp932", "en": "us"}
+    translate = {"windows-874": "iso-8859-11", "utf-8859-1": "utf8", "en_us": "utf8", "macintosh": "iso-8859-1", "euc_tw": "big5_tw", "th": "tis-620", "unicode": "utf8", "utc8": "utf8", "ebcdic": "ebcdic-cp-be", "iso-8859": "iso8859-1", "iso-8859-0": "iso8859-1", "ansi": "ascii", "gbk2312": "gbk", "windows-31j": "cp932", "en": "us"}
 
     for delimiter in (';', ',', '('):
         if delimiter in encoding:
@@ -212,9 +220,9 @@ def checkCharEncoding(encoding, warn=True):
     try:
         codecs.lookup(encoding.encode(UNICODE_ENCODING) if isinstance(encoding, unicode) else encoding)
     except (LookupError, ValueError):
-        if warn:
+        if warn and ' ' not in encoding:
             warnMsg = "unknown web page charset '%s'. " % encoding
-            warnMsg += "Please report by e-mail to 'dev@sqlmap.org'"
+            warnMsg += "Please report by e-mail to '%s'" % DEV_EMAIL_ADDRESS
             singleTimeLogMessage(warnMsg, logging.WARN, encoding)
         encoding = None
 
@@ -253,12 +261,22 @@ def decodePage(page, contentEncoding, contentType):
     if not page or (conf.nullConnection and len(page) < 2):
         return getUnicode(page)
 
-    if isinstance(contentEncoding, basestring) and contentEncoding.lower() in ("gzip", "x-gzip", "deflate"):
+    if isinstance(contentEncoding, basestring) and contentEncoding:
+        contentEncoding = contentEncoding.lower()
+    else:
+        contentEncoding = ""
+
+    if isinstance(contentType, basestring) and contentType:
+        contentType = contentType.lower()
+    else:
+        contentType = ""
+
+    if contentEncoding in ("gzip", "x-gzip", "deflate"):
         if not kb.pageCompress:
             return None
 
         try:
-            if contentEncoding.lower() == "deflate":
+            if contentEncoding == "deflate":
                 data = StringIO.StringIO(zlib.decompress(page, -15))  # Reference: http://stackoverflow.com/questions/1089662/python-inflate-and-deflate-implementations
             else:
                 data = gzip.GzipFile("", "rb", 9, StringIO.StringIO(page))
@@ -279,27 +297,26 @@ def decodePage(page, contentEncoding, contentType):
                 kb.pageCompress = False
                 raise SqlmapCompressionException
 
-    if not conf.charset:
+    if not conf.encoding:
         httpCharset, metaCharset = None, None
 
         # Reference: http://stackoverflow.com/questions/1020892/python-urllib2-read-to-unicode
-        if contentType and (contentType.find("charset=") != -1):
+        if contentType.find("charset=") != -1:
             httpCharset = checkCharEncoding(contentType.split("charset=")[-1])
 
         metaCharset = checkCharEncoding(extractRegexResult(META_CHARSET_REGEX, page))
 
-        if (any((httpCharset, metaCharset)) and not all((httpCharset, metaCharset)))\
-            or (httpCharset == metaCharset and all((httpCharset, metaCharset))):
+        if (any((httpCharset, metaCharset)) and not all((httpCharset, metaCharset))) or (httpCharset == metaCharset and all((httpCharset, metaCharset))):
             kb.pageEncoding = httpCharset or metaCharset  # Reference: http://bytes.com/topic/html-css/answers/154758-http-equiv-vs-true-header-has-precedence
             debugMsg = "declared web page charset '%s'" % kb.pageEncoding
             singleTimeLogMessage(debugMsg, logging.DEBUG, debugMsg)
         else:
             kb.pageEncoding = None
     else:
-        kb.pageEncoding = conf.charset
+        kb.pageEncoding = conf.encoding
 
     # can't do for all responses because we need to support binary files too
-    if contentType and not isinstance(page, unicode) and "text/" in contentType.lower():
+    if not isinstance(page, unicode) and "text/" in contentType:
         if kb.heuristicMode:
             kb.pageEncoding = kb.pageEncoding or checkCharEncoding(getHeuristicCharEncoding(page))
             page = getUnicode(page, kb.pageEncoding)
@@ -373,7 +390,14 @@ def processResponse(page, responseHeaders, status=None):
                             continue
 
                         conf.paramDict[PLACE.POST][name] = value
-                conf.parameters[PLACE.POST] = re.sub("(?i)(%s=)[^&]+" % re.escape(name), r"\g<1>%s" % re.escape(value), conf.parameters[PLACE.POST])
+                conf.parameters[PLACE.POST] = re.sub(r"(?i)(%s=)[^&]+" % re.escape(name), r"\g<1>%s" % re.escape(value), conf.parameters[PLACE.POST])
+
+    if not kb.browserVerification and re.search(r"(?i)browser.?verification", page or ""):
+        kb.browserVerification = True
+        warnMsg = "potential browser verification protection mechanism detected"
+        if re.search(r"(?i)CloudFlare", page):
+            warnMsg += " (CloudFlare)"
+        singleTimeWarnMessage(warnMsg)
 
     if not kb.captchaDetected and re.search(r"(?i)captcha", page or ""):
         for match in re.finditer(r"(?si)<form.+?</form>", page):

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import re
@@ -27,6 +27,7 @@ from lib.core.enums import EXPECTED
 from lib.core.exception import SqlmapConnectionException
 from lib.core.exception import SqlmapNoneDataException
 from lib.core.settings import MAX_INT
+from lib.core.settings import NULL
 from lib.core.unescaper import unescaper
 from lib.request import inject
 
@@ -121,9 +122,9 @@ def pivotDumpTable(table, colList, count=None, blind=True):
 
     def _(column, pivotValue):
         if column == colList[0]:
-            query = dumpNode.query.replace("'%s'", "%s") % (agent.preprocessField(table, column), table, agent.preprocessField(table, column), unescaper.escape(pivotValue, False))
+            query = dumpNode.query.replace("'%s'" if unescaper.escape(pivotValue, False) != pivotValue else "%s", "%s") % (agent.preprocessField(table, column), table, agent.preprocessField(table, column), unescaper.escape(pivotValue, False))
         else:
-            query = dumpNode.query2.replace("'%s'", "%s") % (agent.preprocessField(table, column), table, agent.preprocessField(table, colList[0]), unescaper.escape(pivotValue, False))
+            query = dumpNode.query2.replace("'%s'" if unescaper.escape(pivotValue, False) != pivotValue else "%s", "%s") % (agent.preprocessField(table, column), table, agent.preprocessField(table, colList[0]), unescaper.escape(pivotValue, False))
 
         query = agent.whereQuery(query)
         return unArrayizeValue(inject.getValue(query, blind=blind, time=blind, union=not blind, error=not blind))
@@ -145,9 +146,10 @@ def pivotDumpTable(table, colList, count=None, blind=True):
                         except ValueError:
                             pass
 
-                    if isNoneValue(value):
+                    if isNoneValue(value) or value == NULL:
                         breakRetrieval = True
                         break
+
                     pivotValue = safechardecode(value)
 
                 if conf.limitStart or conf.limitStop:

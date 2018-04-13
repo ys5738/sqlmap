@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.data import logger
@@ -14,11 +14,11 @@ _readline = None
 try:
     from readline import *
     import readline as _readline
-except ImportError:
+except:
     try:
         from pyreadline import *
         import pyreadline as _readline
-    except ImportError:
+    except:
         pass
 
 if IS_WIN and _readline:

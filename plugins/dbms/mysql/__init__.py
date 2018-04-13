@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 from lib.core.enums import DBMS
@@ -23,11 +23,11 @@ class MySQLMap(Syntax, Fingerprint, Enumeration, Filesystem, Miscellaneous, Take
     def __init__(self):
         self.excludeDbsList = MYSQL_SYSTEM_DBS
         self.sysUdfs = {
-                         # UDF name:    UDF return data-type
-                         "sys_exec":    { "return": "int" },
-                         "sys_eval":    { "return": "string" },
-                         "sys_bineval": { "return": "int" }
-                       }
+            # UDF name: UDF return data-type
+            "sys_exec": {"return": "int"},
+            "sys_eval": {"return": "string"},
+            "sys_bineval": {"return": "int"}
+        }
 
         Syntax.__init__(self)
         Fingerprint.__init__(self)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 import hashlib
@@ -92,7 +92,7 @@ class HashDB(object):
                     except sqlite3.DatabaseError, ex:
                         errMsg = "error occurred while accessing session file '%s' ('%s'). " % (self.filepath, getSafeExString(ex))
                         errMsg += "If the problem persists please rerun with `--flush-session`"
-                        raise SqlmapConnectionException, errMsg
+                        raise SqlmapConnectionException(errMsg)
                     else:
                         break
 

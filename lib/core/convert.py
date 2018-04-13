@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2017 sqlmap developers (http://sqlmap.org/)
-See the file 'doc/COPYING' for copying permission
+Copyright (c) 2006-2018 sqlmap developers (http://sqlmap.org/)
+See the file 'LICENSE' for copying permission
 """
 
 try:
@@ -80,7 +80,7 @@ def base64unpickle(value, unsafe=False):
         if len(self.stack) > 1:
             func = self.stack[-2]
             if func not in PICKLE_REDUCE_WHITELIST:
-                raise Exception, "abusing reduce() is bad, Mkay!"
+                raise Exception("abusing reduce() is bad, Mkay!")
         self.load_reduce()
 
     def loads(str):
@@ -94,7 +94,7 @@ def base64unpickle(value, unsafe=False):
 
     try:
         retVal = loads(base64decode(value))
-    except TypeError: 
+    except TypeError:
         retVal = loads(base64decode(bytes(value)))
 
     return retVal
@@ -110,7 +110,7 @@ def hexdecode(value):
     value = value.lower()
     return (value[2:] if value.startswith("0x") else value).decode("hex")
 
-def hexencode(value):
+def hexencode(value, encoding=None):
     """
     Encodes string value from plain to hex format
 
@@ -118,7 +118,7 @@ def hexencode(value):
     '666f6f626172'
     """
 
-    return utf8encode(value).encode("hex")
+    return unicodeencode(value, encoding).encode("hex")
 
 def unicodeencode(value, encoding=None):
     """
@@ -166,7 +166,7 @@ def htmlunescape(value):
 
     retVal = value
     if value and isinstance(value, basestring):
-        codes = (('&lt;', '<'), ('&gt;', '>'), ('&quot;', '"'), ('&nbsp;', ' '), ('&amp;', '&'))
+        codes = (("&lt;", '<'), ("&gt;", '>'), ("&quot;", '"'), ("&nbsp;", ' '), ("&amp;", '&'), ("&apos;", "'"))
         retVal = reduce(lambda x, y: x.replace(y[0], y[1]), codes, retVal)
         try:
             retVal = re.sub(r"&#x([^ ;]+);", lambda match: unichr(int(match.group(1), 16)), retVal)
@@ -174,7 +174,7 @@ def htmlunescape(value):
             pass
     return retVal
 
-def singleTimeWarnMessage(message):  # Cross-linked function
+def singleTimeWarnMessage(message):  # Cross-referenced function
     sys.stdout.write(message)
     sys.stdout.write("\n")
     sys.stdout.flush()
@@ -193,7 +193,7 @@ def stdoutencode(data):
                 warnMsg = "cannot properly display Unicode characters "
                 warnMsg += "inside Windows OS command prompt "
                 warnMsg += "(http://bugs.python.org/issue1602). All "
-                warnMsg += "unhandled occurances will result in "
+                warnMsg += "unhandled occurrences will result in "
                 warnMsg += "replacement with '?' character. Please, find "
                 warnMsg += "proper character representation inside "
                 warnMsg += "corresponding output files. "
